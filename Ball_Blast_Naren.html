@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Canvas tutorial</title>
+    <style>
+      canvas {
+          background-color: LightBlue;
+      }
+    </style>
+    
+  </head>
+  <body>
+    <canvas id="myCanvas" width ="480" height="320"></canvas>
+  </body>
+  <script>
+
+     var canvas = document.getElementById("myCanvas");
+     var ctx = canvas.getContext("2d");
+
+      var cw = canvas.width;
+      var ch = canvas.height;
+      var cannonw=30,cannonh=20;
+
+      var cannonx = (cw-cannonw)/2;
+      var cannony = ch-cannonh;
+
+
+      var ball=[];
+      var rock=[];
+
+      var ball_count=0,rock_count=0;
+      var right_arrow=0,left_arrow=0;
+      var game_over=0;
+      var score=0,hit=0;
+
+      var anim_start=null,ball_interval=null,rock_interval=null;
+      var number_balls=10,number_rocks=0.2;
+
+      
+      function draw_cannon() {
+                ctx.beginPath();
+                ctx.rect(cannonx,cannony,30, 20);
+                ctx.fillStyle = "black";
+                ctx.fill();
+                ctx.closePath();
+        }
+
+      function run_cannon () {
+                  if(right_arrow==1 && cannonx+(cannonw/2)+25<cw) 
+                    cannonx+=5;
+                  else if (left_arrow==1 && cannonx-(cannonw/2)-5>=0)
+                    cannonx-=5;
+                   draw_cannon();
+        }
+    function display_score() {
+      ctx.fillStyle='black';
+        ctx.font="10px Arial";
+        ctx.textAlign='center';
+        ctx.fillText("SCORE: "+ score,cw-30,20);
+      }
+
+
+      function Ball(x,y,count) {
+        this.x=x;
+        this.y=y;
+        this.count=count;
+        this.draw_ball = function () {
+                          if(game_over==0) {
+                          ctx.beginPath();
+                          ctx.arc(this.x, this.y, 3, 0, Math.PI*2);
+                          ctx.fillStyle = "red";
+                          ctx.fill();
+                          ctx.closePath();
+                        }
+                      }
+        this.move = function() {
+                    this.y = this.y-4;
+                    this.draw_ball();
+                  }
+        this.hit = function(rock) {                //complete with return 1 or 0
+          for(var i=0;i<rock.length;i++) {
+              if((this.x>=(rock[i].x-rock[i].radius) && this.x<=(rock[i].x+rock[i].radius)) && (this.y>=(rock[i].y-rock[i].radius) && this.y<=(rock[i].y+rock[i].radius))) {
+                   hit++;
+                   rock[i].point_copy--;
+                   score+=3;
+                   display_score();                        // one shot 3 points
+                   if(rock[i].point_copy==0) {
+                          if(rock[i].point>=8) {
+                            rock.push(new Rock(rock[i].x,rock[i].y,Math.floor(rock[i].point/2),Math.floor(rock[i].point/2),Math.floor(rock[i].radius/1.2),0,1));
+                             rock.push(new Rock(rock[i].x,rock[i].y,Math.floor(rock[i].point/2),Math.floor(rock[i].point/2),Math.floor(rock[i].radius/1.5),0,-1));
+                            }
+                            rock.splice(i,1);
+                        }
+                        return 1;
+            }
+          }
+          return 0;
+        }
+      }
+
+
+       //rock x,y,point,point_copy,radius,split,direction
+      function Rock(x,y,point,point_copy,radius,split,direction) {          // dir(+1 or -1)  (+ right, - left)
+        this.x=x;
+        this.y=y;
+        this.point=point;
+        if(point>0 && point<5)
+        this.dx=1*direction;
+        else if(point>5 && point <11)
+          this.dx=0.75*direction;
+        else
+          this.dx=0.6*direction;
+        this.dy=-0.5;
+        this.point_copy=point;
+        this.radius=radius;
+        this.draw_rock = function () {
+                          ctx.beginPath();
+                          ctx.arc(this.x,this.y,this.radius, 0, Math.PI*2);
+                          ctx.fillStyle = "brown";
+                          ctx.fill();
+                          ctx.fillStyle="white";
+                          ctx.font="10px Arial";
+                          ctx.textAlign='center';
+                          ctx.fillText(this.point_copy,this.x,this.y);
+                          ctx.closePath();
+                        }
+         this.move = function() {
+                          if(this.x + this.radius>cw || this.x-this.radius<0) 
+                            this.dx=-this.dx;
+                          if(this.y+this.radius>ch)
+                            this.dy=-5;
+                          this.x += this.dx;
+                          this.y += this.dy;
+                          this.dy+=0.1;
+                          this.draw_rock();
+
+                    }
+
+   }  
+
+
+   function create_ball() {
+    //pushing new ball to array of objs
+    ball.push(new Ball(cannonx + (cannonw/2),cannony,++ball_count));
+   }
+
+   function create_rock() {
+      var min=5; 
+      var max=30;  
+      var point = Math.floor(Math.random() * (+max - +min)) + +min; 
+      var point_copy=point;
+      var side = point%2;      // 0 left 1 right
+      var direction,x;
+      min=50;
+      max=230;
+      var y = Math.floor(Math.random() * (+max - +min)) + +min; 
+      min=20;
+      max=40;
+      var radius=Math.floor(Math.random() * (+max - +min)) + +min;
+       if(side==0) {
+        direction=-1; 
+        x=radius;       // left
+      }
+      else if(side==1) {
+        direction=1; 
+        x=cw-radius;        // right
+      }
+      if(point>=8)
+        split=1;
+      else
+        split=0;
+      rock.push(new Rock(x,y,point,point_copy,radius,split,1));
+      rock_count++;
+  }
+   function end() {
+        clearInterval(ball_interval);
+        clearInterval(rock_interval);
+    }
+
+      function player_score() {
+        if(score>Number(localStorage.getItem("highscore")))
+          localStorage.setItem("highscore",score);
+
+        ctx.clearRect(0,0,cw,ch);
+
+        ctx.font="15px Arial";
+        ctx.fillStyle='black';
+        ctx.fillText("NUMBER OF HITS:" + hit,220,150);
+        ctx.fillText("YOUR SCORE:" + score,220,170);
+        ctx.fillText("HIGHEST SCORE: " + localStorage.getItem("highscore"),220,190);
+        ctx.font="10px Arial";
+        ctx.fillText("CLICK TO END",240,200);
+        window.addEventListener("click",home);
+      }
+      
+
+  function collision() {
+       for(var i=0;i<rock.length;i++) {
+        if((rock[i].x+rock[i].radius)>=cannonx && (rock[i].x-rock[i].radius)<=cannonx && (rock[i].y+rock[i].radius)>=cannony && (rock[i].y-rock[i].radius)<=cannony) {
+          game_over=1;
+          rock=[];
+          ball=[];
+          rock.splice(i,1);
+           ctx.clearRect(0,0,cw,ch);
+           cancelAnimationFrame(anim_start);
+           end();
+           player_score();
+      }            
+    }
+  }
+
+    function game_loop() {
+      if(game_over==0)
+             anim_start=requestAnimationFrame(game_loop);
+      else {
+             bullets=[];
+             rocks=[];
+          }
+        ctx.clearRect(0,0,cw,ch);    
+        run_cannon();
+        if(score<100)
+          number_balls=10;           // per sec
+        else if(score>=100 && score<250)
+          number_balls=15;
+        else
+          number_balls=20;
+        display_score();
+        for(var i=0;i<ball.length;i++){
+            if(ball[i].hit(rock)==1)
+              ball.splice(i,1);
+            ball[i].move();
+          }
+          for(var j=0;j<rock.length;j++){
+              collision();
+            rock[j].move();
+        }
+      }
+   function start() {
+    window.removeEventListener("click",start);
+    ball = [];
+    rock = [];
+    game_over=0;
+    score=0;
+    ball_count=0;
+    rock_count=0;
+    right_arrow=0;
+    left_arrow=0;
+    game_over=0;
+    score=0;
+    hit=0;
+    anim_start=null;
+    ball_interval=null;
+    rock_interval=null;
+      draw_cannon();     
+
+          ball_interval = setInterval(create_ball,1000/number_balls);
+          create_rock();
+          rock_interval = setInterval(create_rock,1000/number_rocks);
+          game_loop();
+    }
+
+     function home () {
+      window.removeEventListener("click",home);
+        ctx.clearRect(0,0,cw,ch);
+        ctx.fillStyle='black';
+        ctx.font="20px Arial";
+        ctx.textAlign='center';
+        ctx.fillText("CLICK TO START",cw/2,ch/2);
+        window.addEventListener("click",start);
+    }
+    home();
+    
+    localStorage.setItem("highscore","0");
+        window.addEventListener("keydown" ,function(event){
+          if(event.key=="ArrowRight"||event.key=="Right" || event.key=="D" || event.key=="d") right_arrow=1;
+          else if(event.key=="ArrowLeft"||event.key=="Left"||event.key=="A" || event.key=="a") left_arrow=1;
+        });
+        window.addEventListener("keyup",function(event){
+          if(event.key=="ArrowRight"||event.key=="Right" || event.key=="D" || event.key=="d") right_arrow=0;
+          else if(event.key=="ArrowLeft"||event.key=="Left"||event.key=="A" || event.key=="a") left_arrow=0;
+        });
+
+
+</script>
+</html>
